@@ -2,7 +2,7 @@
 
 # FISUMa
 
-**Website of the Physics Nucleus FISUMa from Universidade da Madeira**
+**Website of the Physics Nucleus at Universidade da Madeira**
 
 [![Figma](https://img.shields.io/badge/Figma-Design-F24E1E?style=flat-square&logo=figma&logoColor=white)](https://www.figma.com/design/B0JeHe5WCU6Of6jRBzTMi5/FISUMa?node-id=0-1)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org)
@@ -16,6 +16,8 @@
 
 ## Getting Started
 
+**Prerequisites:** Node.js 20+, access to the Supabase project is recommended.
+
 ```bash
 git clone https://github.com/igp183/fisuma
 cd fisuma
@@ -26,9 +28,13 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Project Design
+
+You can check the current state of the site's design mockups [here](https://www.figma.com/design/B0JeHe5WCU6Of6jRBzTMi5/FISUMa?node-id=0-1&t=skZL0Fy9eUyyzl5R-1)
+
 ## Project Structure
 
-[locale] allows to display different contents depending on the language (check [Next.js Dynamic routes](https://nextjs.org/docs/pages/building-your-application/routing/dynamic-routes) if you want more information on the topic).
+[locale] allows to display different contents depending on the language (check [Next.js Dynamic routes](https://nextjs.org/docs/app/building-your-application/routing/dynamic-routes) if you want more information on the topic).
 ```
 app/
   [locale]/
@@ -41,5 +47,5 @@ messages/
 ---
 
 <div align="center">
-  In case of any question don't hesitate to contact a member of FISUMa.
+  Have a question? Open an issue or reach out to us.
 </div>
