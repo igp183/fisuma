@@ -2,7 +2,7 @@
 
 Thanks for wanting to help. This guide will point you in the right direction depending on what you want to do.
 
-Don't hesitate to contribute however you can, but following the guidelines on this Markdown is appreciated.
+Don't hesitate to contribute however you can, but please follow the guidelines in this document.
 
 ---
 

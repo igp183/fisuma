@@ -18,7 +18,7 @@ Ask a maintainer to invite you to the Supabase project.
 Each type of content (events, posts, team members, etc.) has its own table.
 To add a new entry, open the relevant table, click **Insert row**, fill in the fields, and click **Save**.
 
-For details on each table and what each field means, refer to the table descriptions in the dashboard or ask a maintainer.
+If a field is unclear, ask a maintainer.
 
 ## What not to touch
 

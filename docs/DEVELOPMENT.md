@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Node.js 20+
-- Access to the Supabase project (ask a maintainer for the `.env.local` values)
+- Access to the Supabase project (ask a maintainer for the `.env.local` file)
 
 ## Local setup
 
@@ -11,12 +11,10 @@
 git clone https://github.com/igp183/fisuma
 cd fisuma
 npm install
-cp .env.example .env.local
-# Fill in the Supabase credentials in .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:4321](http://localhost:4321).
 
 ## Branch naming
 
@@ -39,8 +37,6 @@ chore: update PT translations
 docs: add setup instructions
 ```
 
-Keep the message short and in the imperative (*"add"* not *"added"*).
-
 ## Opening a PR
 
 1. Push your branch
@@ -51,16 +47,22 @@ Keep the message short and in the imperative (*"add"* not *"added"*).
 ## Project structure
 
 ```
-app/
-  [locale]/         # Dynamic locale routing (PT default, EN optional)
-    page.tsx
-    events/
-    about/
-components/         # React components
+src/
+  pages/
+    index.astro
+    about.astro
+    events.astro
+    en/
+      index.astro
+      about.astro
+      events.astro
+  components/
+  layouts/
 messages/
-  pt.json           
+  pt.json
   en.json
+public/
 supabase/
-  migrations/       # All schema changes as SQL migrations
-  seed.sql          # Sample data for local development
+  migrations/
+  seed.sql
 ```

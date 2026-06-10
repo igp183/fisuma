@@ -1,13 +1,11 @@
 # Translations
 
-The site supports Portuguese (default) and English. All UI strings live in JSON files so no code changes are needed to update a translation.
-
-## Files
+The site supports Portuguese (default) and English. Strings live in JSON files, no code changes needed to update a translation.
 
 ```
 messages/
-  pt.json    
-  en.json    
+  pt.json
+  en.json
 ```
 
 ## Adding or editing a string
@@ -34,11 +32,10 @@ Example:
 }
 ```
 
-If a key exists in `pt.json` but not in `en.json`, the site will display the Portuguese version for English users, this is intentional and safe.
+If a key is missing from `en.json`, the site will show the Portuguese text instead. This is fine.
 
 ## Rules
 
-- Always update `pt.json` first since it is the source of truth
-- Try to update `en.json` at the same time, but it's not a blocker
+- Always update `pt.json` first
+- Try to update `en.json` at the same time, but it's not required
 - Never delete a key from `pt.json` without checking if it's used in the code
-- Keep keys grouped by section and use dot notation (`section.key`)
