@@ -3,6 +3,7 @@
 ## Prerequisites
 
 - Node.js 20+
+- pnpm (Package manager)
 - Access to the Supabase project (ask a maintainer for the `.env.local` file)
 
 ## Local setup
@@ -10,11 +11,11 @@
 ```bash
 git clone https://github.com/igp183/fisuma
 cd fisuma
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
-Open [http://localhost:4321](http://localhost:4321).
+Open [http://localhost:3000](http://localhost:3000).
 
 ## Branch naming
 
@@ -47,21 +48,24 @@ docs: add setup instructions
 ## Project structure
 
 ```
-src/
+app/                # Backend (FastAPI / Python)
+  src/
+src/                # Frontend (Next.js / React)
   pages/
-    index.astro
-    about.astro
-    events.astro
+    index.tsx
+    about.tsx
+    events.tsx
     en/
-      index.astro
-      about.astro
-      events.astro
+      index.tsx
+      about.tsx
+      events.tsx
   components/
-  layouts/
-messages/
+    ui/             # shadcn/ui components
+  lib/              # Utility functions (e.g., Tailwind merge)
+messages/           # Translation strings
   pt.json
   en.json
-public/
+public/             # Static assets (images, icons)
 supabase/
   migrations/
   seed.sql

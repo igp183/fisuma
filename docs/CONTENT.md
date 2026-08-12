@@ -1,5 +1,7 @@
 # Adding Content
 
+> **Note:** This guide is **only** for team members managing live website content via the Supabase dashboard. If you are a developer setting up a local database, please refer to `DATABASE.md`.
+
 You don't need to touch any code to add or update content on the site.
 Everything goes through the Supabase dashboard.
 
