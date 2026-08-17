@@ -1,7 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 
 export default function Navbar() {
+  // This hook gets the current URL path (e.g., "/" or "/sobre")
+  const pathname = usePathname();
+
   return (
     <nav className="w-full bg-[#050A15]/90 backdrop-blur-md border-b border-white/5 fixed top-0 z-50">
       <div className="max-w-7xl mx-auto px-8 h-24 flex items-center justify-between">
@@ -21,17 +27,38 @@ export default function Navbar() {
 
         {/* Center: Navigation Links */}
         <div className="hidden md:flex items-center gap-10 text-sm font-medium text-slate-300">
-          <Link href="#sobre" className="hover:text-white transition-colors">Sobre</Link>
-          <Link href="#eventos" className="hover:text-white transition-colors">Eventos</Link>
           
-          {/* Active Link Example (Projetos) */}
+          {/* Sobre Link - Now Dynamic */}
           <div className="relative flex flex-col items-center">
-            <Link href="#projetos" className="text-white">Projetos</Link>
-            <div className="absolute -bottom-9 w-6 h-[3px] bg-cyan-400 rounded-t-sm"></div>
+            <Link 
+              href="/sobre" 
+              className={pathname === "/sobre" ? "text-white" : "hover:text-white transition-colors"}
+            >
+              Sobre
+            </Link>
+            {/* Only show the highlight if the URL is /sobre */}
+            {pathname === "/sobre" && (
+              <div className="absolute -bottom-9 w-6 h-[3px] bg-cyan-400 rounded-t-sm"></div>
+            )}
           </div>
-          
-          <Link href="#equipa" className="hover:text-white transition-colors">Equipa</Link>
-          <Link href="#contacto" className="hover:text-white transition-colors">Contacto</Link>
+
+          {/* Calendário Link - Dynamic */}
+          <div className="relative flex flex-col items-center">
+            <Link 
+              href="/calendario" 
+              className={pathname === "/calendario" ? "text-white" : "hover:text-white transition-colors"}
+            >
+              Calendário
+            </Link>
+            {pathname === "/calendario" && (
+              <div className="absolute -bottom-9 w-6 h-[3px] bg-cyan-400 rounded-t-sm"></div>
+            )}
+          </div>
+
+
+          <Link href="/#projetos" className="hover:text-white transition-colors">Projetos</Link>
+          <Link href="/#equipa" className="hover:text-white transition-colors">Equipa</Link>
+          <Link href="/#contacto" className="hover:text-white transition-colors">Contacto</Link>
         </div>
 
         {/* Right: CTA Button */}
