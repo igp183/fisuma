@@ -1,6 +1,22 @@
+# dependencies
 node_modules/
-dist/
-.astro/
+
+# builds
 .next/
+
+# env (só .env.example é versionado)
 .env
-.env.local
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# vercel
+.vercel
+
+# testes / automação
+.playwright-mcp/
+
+# sistema
+.DS_Store
+*.pem
