@@ -44,13 +44,27 @@ export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklySch
   const { events, loading, error } = useWeekEvents(weekStart, activeCalendars);
   const { reminders, add, remove } = usePersonalReminders();
 
+  // Events actually within the displayed Monday-Sunday window. The hook keeps
+  // the previous week's events visible while a new week loads (to avoid a
+  // flash-to-empty), so without this bound, a slow fetch briefly renders last
+  // week's classes under the new week's day columns. `weekdayIndex` only
+  // encodes day-of-week, not which week an event belongs to.
+  const weekEvents = useMemo(() => {
+    const monday = mondayOf(weekStart);
+    const sunday = addDays(monday, 7);
+    return events.filter((e) => {
+      const d = wallClockDate(e.start);
+      return d >= monday && d < sunday;
+    });
+  }, [events, weekStart]);
+
   const blocks = useMemo(
     () =>
       layoutWeek([
-        ...eventsToBlocks(events),
+        ...eventsToBlocks(weekEvents),
         ...remindersToBlocks(reminders, weekStart),
       ]),
-    [events, reminders, weekStart],
+    [weekEvents, reminders, weekStart],
   );
 
   // Widen the grid when a day needs multiple lanes, so overlapping events stay
@@ -80,7 +94,7 @@ export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklySch
   const agenda = useMemo(() => {
     const monday = mondayOf(weekStart);
     const sunday = addDays(monday, 7);
-    const exams = events
+    const exams = weekEvents
       .filter((e) => e.important && !e.allDay)
       .map((e) => {
         const d = wallClockDate(e.start);
@@ -111,7 +125,7 @@ export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklySch
     return [...exams, ...rems].sort(
       (a, b) => a.date.getTime() - b.date.getTime() || a.start - b.start,
     );
-  }, [events, reminders, weekStart]);
+  }, [weekEvents, reminders, weekStart]);
 
   return (
     <div className="relative w-full">
