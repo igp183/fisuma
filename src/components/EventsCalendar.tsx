@@ -4,12 +4,14 @@ import { useMemo, useState } from "react";
 import { addMonths, format, isSameMonth, isToday, startOfMonth, subMonths } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEvents } from "@/hooks/useEvents";
+import { usePersonalReminders } from "@/hooks/usePersonalReminders";
 import {
   WEEKDAYS,
   buildMonthGrid,
   dayKey,
   eventPillStyle,
   groupEventsByDay,
+  reminderToEvent,
   syncStatus,
 } from "@/lib/calendar-utils";
 import DayEventsModal from "./DayEventsModal";
@@ -26,11 +28,16 @@ export default function EventsCalendar({ activeCalendars }: EventsCalendarProps)
   const [view, setView] = useState<Date>(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState<Date | null>(null);
   const { events, sources, loading, error } = useEvents(view);
+  const { reminders, remove } = usePersonalReminders();
 
-  const visible = useMemo(
-    () => events.filter((e) => activeCalendars.includes(e.source)),
-    [events, activeCalendars],
-  );
+  // Google events respect the calendar filter; personal reminders always show.
+  const visible = useMemo(() => {
+    const merged = [
+      ...events.filter((e) => activeCalendars.includes(e.source)),
+      ...reminders.map(reminderToEvent),
+    ];
+    return merged.sort((a, b) => a.start.localeCompare(b.start));
+  }, [events, activeCalendars, reminders]);
   const eventsByDay = useMemo(() => groupEventsByDay(visible), [visible]);
   const days = useMemo(() => buildMonthGrid(view), [view]);
 
@@ -162,6 +169,7 @@ export default function EventsCalendar({ activeCalendars }: EventsCalendarProps)
         <DayEventsModal
           date={selected}
           events={selectedEvents}
+          onDeleteReminder={remove}
           onClose={() => setSelected(null)}
         />
       )}

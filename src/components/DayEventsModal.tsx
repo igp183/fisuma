@@ -3,11 +3,17 @@
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import type { CalendarEvent } from "@/types";
-import { eventPillStyle, eventTimeLabel } from "@/lib/calendar-utils";
+import {
+  REMINDER_SOURCE,
+  eventPillStyle,
+  eventTimeLabel,
+} from "@/lib/calendar-utils";
 
 interface DayEventsModalProps {
   date: Date;
   events: CalendarEvent[];
+  /** Remove a personal reminder by id (personal entries only). */
+  onDeleteReminder?: (id: string) => void;
   onClose: () => void;
 }
 
@@ -15,6 +21,7 @@ interface DayEventsModalProps {
 export default function DayEventsModal({
   date,
   events,
+  onDeleteReminder,
   onClose,
 }: DayEventsModalProps) {
   return (
@@ -50,27 +57,45 @@ export default function DayEventsModal({
               Nada agendado
             </p>
           ) : (
-            events.map((ev) => (
-              <div
-                key={ev.id}
-                style={eventPillStyle(ev)}
-                className="border-l-2 rounded-r-lg p-3"
-              >
-                <p className="text-sm font-semibold text-white">
-                  {ev.important && <span aria-hidden="true">🔴 </span>}
-                  {ev.title}
-                </p>
-                <p className="text-[11px] font-mono text-slate-400 mt-1">
-                  {eventTimeLabel(ev)}
-                  {ev.location ? ` · ${ev.location}` : ""}
-                </p>
-                {ev.description && (
-                  <p className="text-xs text-slate-300 mt-2 whitespace-pre-wrap leading-relaxed">
-                    {ev.description}
+            events.map((ev) => {
+              const personal = ev.source === REMINDER_SOURCE;
+              return (
+                <div
+                  key={ev.id}
+                  style={eventPillStyle(ev)}
+                  className="relative border-l-2 rounded-r-lg p-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-semibold text-white">
+                      {ev.important && <span aria-hidden="true">🔴 </span>}
+                      {ev.title}
+                    </p>
+                    {personal && (
+                      <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-purple-300">
+                        Pessoal
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] font-mono text-slate-400 mt-1">
+                    {eventTimeLabel(ev)}
+                    {ev.location ? ` · ${ev.location}` : ""}
                   </p>
-                )}
-              </div>
-            ))
+                  {ev.description && (
+                    <p className="text-xs text-slate-300 mt-2 whitespace-pre-wrap leading-relaxed">
+                      {ev.description}
+                    </p>
+                  )}
+                  {personal && onDeleteReminder && (
+                    <button
+                      onClick={() => onDeleteReminder(ev.id)}
+                      className="mt-2 text-[11px] font-bold text-slate-400 hover:text-red-400 transition-colors"
+                    >
+                      Apagar
+                    </button>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       </div>
