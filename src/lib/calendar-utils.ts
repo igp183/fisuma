@@ -69,14 +69,15 @@ export function eventTimeLabel(ev: CalendarEvent): string {
   return `${format(wallClockDate(ev.start), "HH:mm")} – ${format(wallClockDate(ev.end), "HH:mm")}`;
 }
 
-/** Inline pill style from the event's resolved color and importance. */
+/** Inline pill style from the event's resolved color and importance.
+ * Light theme, matching the weekly blocks: dark text on a faint color wash. */
 export function eventPillStyle(ev: CalendarEvent): CSSProperties {
   return {
-    color: "#e6edfb",
+    color: "#0f172a", // slate-900
     borderLeftColor: ev.colorHex,
-    backgroundColor: `${ev.colorHex}1f`, // ~12% alpha
+    backgroundColor: `${ev.colorHex}22`, // ~13% alpha, same as the weekly blocks
     ...(ev.important
-      ? { boxShadow: `0 0 10px ${ev.colorHex}80`, borderLeftWidth: 3 }
+      ? { boxShadow: `0 0 8px ${ev.colorHex}66`, borderLeftWidth: 3 }
       : null),
   };
 }
