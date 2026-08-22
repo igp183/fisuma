@@ -16,6 +16,14 @@ export const WEEKDAYS_FULL = [
 export const HOUR_START = 8;
 export const HOUR_END = 21;
 export const PX_PER_HOUR = 80;
+
+/**
+ * Max height for the Semanal/Mensal grid card. Bounds the card to the
+ * viewport (minus the page chrome above it) so the grid scrolls internally
+ * instead of the whole page. The header and tabs stay in place. 360px is a
+ * floor so short viewports still show a usable slice of the grid.
+ */
+export const CARD_MAX_HEIGHT = "max(360px, calc(100vh - 300px))";
 /** Hour rows rendered in the grid (labels). */
 export const HOURS = Array.from(
   { length: HOUR_END - HOUR_START },

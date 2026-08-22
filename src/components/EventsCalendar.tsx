@@ -1,14 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  addMonths,
-  format,
-  isSameMonth,
-  isToday,
-  startOfMonth,
-  subMonths,
-} from "date-fns";
+import { format, isSameMonth, isToday } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEvents } from "@/hooks/useEvents";
 import { usePersonalReminders } from "@/hooks/usePersonalReminders";
@@ -22,20 +15,20 @@ import {
   groupEventsByDay,
   reminderToEvent,
 } from "@/lib/calendar-utils";
-import { WEEKDAYS_FULL } from "@/lib/schedule-utils";
+import { CARD_MAX_HEIGHT, WEEKDAYS_FULL } from "@/lib/schedule-utils";
 import DayEventsModal from "./DayEventsModal";
 import ReminderModal from "./ReminderModal";
 
 const MAX_PILLS_PER_DAY = 5;
 
 interface EventsCalendarProps {
+  view: Date;
   /** Calendar keys currently visible (shared filter). */
   activeCalendars: string[];
 }
 
 /** Monthly view. Same visual system as the weekly view, laid out per month. */
-export default function EventsCalendar({ activeCalendars }: EventsCalendarProps) {
-  const [view, setView] = useState<Date>(() => startOfMonth(new Date()));
+export default function EventsCalendar({ view, activeCalendars }: EventsCalendarProps) {
   const [selected, setSelected] = useState<Date | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -81,48 +74,27 @@ export default function EventsCalendar({ activeCalendars }: EventsCalendarProps)
         />
       )}
 
-      {/* Month navigation */}
-      <div className="flex flex-wrap items-center gap-4 text-slate-600 mb-8">
-        <button
-          onClick={() => setView(startOfMonth(new Date()))}
-          className="px-6 py-2 bg-white border border-slate-200 text-slate-700 shadow-sm rounded-none text-sm font-bold hover:bg-slate-50 transition-colors"
-        >
-          Hoje
-        </button>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setView((v) => subMonths(v, 1))}
-            aria-label="Mês anterior"
-            className="w-10 h-10 flex items-center justify-center rounded-none bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
-          >
-            ←
-          </button>
-          <button
-            onClick={() => setView((v) => addMonths(v, 1))}
-            aria-label="Mês seguinte"
-            className="w-10 h-10 flex items-center justify-center rounded-none bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
-          >
-            →
-          </button>
-        </div>
-        <span className="text-lg font-bold text-slate-800 ml-2 capitalize">
-          {format(view, "LLLL yyyy", { locale: pt })}
-        </span>
-        {loading && (
-          <span className="text-[10px] font-mono uppercase tracking-widest text-[#0066CC] animate-pulse ml-4">
-            a sincronizar…
-          </span>
-        )}
-        {error && (
-          <span className="text-[10px] font-mono uppercase tracking-widest text-red-500 ml-4">
-            erro: {error}
-          </span>
-        )}
-      </div>
-
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        {/* Month grid */}
-        <div className="xl:col-span-3 bg-white border border-slate-200 rounded-none shadow-xl p-6">
+        {/* Month grid: height-capped, scrolls internally like the weekly grid. */}
+        <div
+          className="xl:col-span-3 bg-white border border-slate-200 rounded-none shadow-xl relative z-0 flex flex-col"
+          style={{ maxHeight: CARD_MAX_HEIGHT }}
+        >
+          {(loading || error) && (
+            <div className="flex justify-end px-6 pt-3">
+              {loading && (
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[#0066CC] animate-pulse">
+                  a sincronizar…
+                </span>
+              )}
+              {error && (
+                <span className="text-[10px] font-mono uppercase tracking-widest text-red-500">
+                  erro: {error}
+                </span>
+              )}
+            </div>
+          )}
+          <div className="overflow-auto flex-1 p-6">
           {/* Weekday headers */}
           <div className="grid grid-cols-7 border-b border-slate-200 pb-4 mb-2">
             {WEEKDAYS_FULL.map((day, i) => (
@@ -200,6 +172,7 @@ export default function EventsCalendar({ activeCalendars }: EventsCalendarProps)
                 </button>
               );
             })}
+          </div>
           </div>
         </div>
 

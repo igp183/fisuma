@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, parseISO } from "date-fns";
 import {
+  CARD_MAX_HEIGHT,
   HOURS,
+  HOUR_START,
   PX_PER_HOUR,
   WEEKDAYS_FULL,
   blockStyle,
@@ -15,7 +17,6 @@ import {
   remindersToBlocks,
   shortDate,
   toDecimalHour,
-  weekLabel,
 } from "@/lib/schedule-utils";
 import { useWeekEvents } from "@/hooks/useCalendarEvents";
 import { usePersonalReminders } from "@/hooks/usePersonalReminders";
@@ -23,6 +24,7 @@ import { wallClockDate } from "@/lib/datetime";
 import ReminderModal from "./ReminderModal";
 
 interface WeeklyScheduleProps {
+  weekStart: Date;
   activeCalendars: string[];
 }
 
@@ -34,9 +36,9 @@ const HOUR_GUTTER = 52;
 const MIN_LANE_WIDTH = 68;
 const BASE_MIN_WIDTH = 760;
 
-export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps) {
-  const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(new Date()));
+export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklyScheduleProps) {
   const [modalOpen, setModalOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Events for the visible week, from /api/calendar.
   const { events, loading, error } = useWeekEvents(weekStart, activeCalendars);
@@ -57,6 +59,22 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
     const maxLanes = blocks.reduce((m, b) => Math.max(m, b.lanes), 1);
     return Math.max(BASE_MIN_WIDTH, HOUR_GUTTER + 7 * maxLanes * MIN_LANE_WIDTH);
   }, [blocks]);
+
+  // On load or when the week changes, scroll to an hour before the day's
+  // first event (or before "now", if viewing the current week) instead of
+  // always starting at HOUR_START, so the relevant part of the day is
+  // visible without scrolling through empty morning hours first.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const isCurrentWeek = mondayOf(new Date()).getTime() === mondayOf(weekStart).getTime();
+    const candidates = blocks.map((b) => b.start);
+    if (isCurrentWeek) candidates.push(toDecimalHour(new Date()));
+    const target = candidates.length
+      ? Math.max(HOUR_START, Math.min(...candidates) - 1)
+      : HOUR_START;
+    el.scrollTop = (target - HOUR_START) * PX_PER_HOUR;
+  }, [blocks, weekStart]);
 
   // Sidebar agenda: important events (exams/deliveries) + personal reminders.
   const agenda = useMemo(() => {
@@ -107,50 +125,29 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
         />
       )}
 
-      {/* Week navigation */}
-      <div className="flex flex-wrap items-center gap-4 text-slate-600 mb-8">
-        <button
-          onClick={() => setWeekStart(mondayOf(new Date()))}
-          className="px-6 py-2 bg-white border border-slate-200 text-slate-700 shadow-sm rounded-none text-sm font-bold hover:bg-slate-50 transition-colors"
-        >
-          Hoje
-        </button>
-        
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setWeekStart((w) => addDays(w, -7))}
-            aria-label="Semana anterior"
-            className="w-10 h-10 flex items-center justify-center rounded-none bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
-          >
-            ←
-          </button>
-          <button
-            onClick={() => setWeekStart((w) => addDays(w, 7))}
-            aria-label="Semana seguinte"
-            className="w-10 h-10 flex items-center justify-center rounded-none bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
-          >
-            →
-          </button>
-        </div>
-        
-        <span className="text-lg font-bold text-slate-800 ml-2">{weekLabel(weekStart)}</span>
-        
-        {loading && (
-          <span className="text-[10px] font-mono uppercase tracking-widest text-[#0066CC] animate-pulse ml-4">
-            a sincronizar…
-          </span>
-        )}
-        {error && (
-          <span className="text-[10px] font-mono uppercase tracking-widest text-red-500 ml-4">
-            erro: {error}
-          </span>
-        )}
-      </div>
-
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        
-        {/* Main week grid */}
-        <div className="xl:col-span-3 bg-white border border-slate-200 rounded-none shadow-xl overflow-x-auto relative z-0">
+
+        {/* Main week grid: height-capped, scrolls internally so the page
+            chrome above it never has to scroll out of view. */}
+        <div
+          className="xl:col-span-3 bg-white border border-slate-200 rounded-none shadow-xl relative z-0 flex flex-col"
+          style={{ maxHeight: CARD_MAX_HEIGHT }}
+        >
+          {(loading || error) && (
+            <div className="flex justify-end px-6 pt-3">
+              {loading && (
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[#0066CC] animate-pulse">
+                  a sincronizar…
+                </span>
+              )}
+              {error && (
+                <span className="text-[10px] font-mono uppercase tracking-widest text-red-500">
+                  erro: {error}
+                </span>
+              )}
+            </div>
+          )}
+          <div ref={scrollRef} className="overflow-auto flex-1">
           <div className="relative p-6" style={{ minWidth: gridMinWidth }}>
             
             {/* Day headers */}
@@ -249,6 +246,7 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
                 </div>
               )}
             </div>
+          </div>
           </div>
         </div>
 
