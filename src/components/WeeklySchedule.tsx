@@ -30,7 +30,7 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
   const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(new Date()));
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Usamos o teu hook que vai buscar os eventos à rota /api/calendar
+  // Events for the visible week, from /api/calendar.
   const { events, loading, error } = useWeekEvents(weekStart, activeCalendars);
   const { reminders, add, remove } = usePersonalReminders();
 
@@ -43,7 +43,7 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
     [events, reminders, weekStart],
   );
 
-  // Agenda lateral (exames/avaliações + lembretes pessoais)
+  // Sidebar agenda: important events (exams/deliveries) + personal reminders.
   const agenda = useMemo(() => {
     const monday = mondayOf(weekStart);
     const sunday = addDays(monday, 7);
@@ -92,7 +92,7 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
         />
       )}
 
-      {/* Controlos de Navegação da Semana */}
+      {/* Week navigation */}
       <div className="flex flex-wrap items-center gap-4 text-slate-600 mb-8">
         <button
           onClick={() => setWeekStart(mondayOf(new Date()))}
@@ -134,11 +134,11 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         
-        {/* Grelha Principal Semanal */}
+        {/* Main week grid */}
         <div className="xl:col-span-3 bg-white border border-slate-200 rounded-none shadow-xl overflow-x-auto relative z-0">
           <div className="min-w-[760px] relative p-6">
             
-            {/* Cabeçalho dos Dias */}
+            {/* Day headers */}
             <div className="grid grid-cols-[52px_1fr] border-b border-slate-200 pb-4 mb-2">
               <div />
               <div className="grid grid-cols-7">
@@ -160,7 +160,7 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
             </div>
 
             <div className="relative">
-              {/* Linhas Horárias */}
+              {/* Hour rows */}
               {HOURS.map((hour) => (
                 <div
                   key={hour}
@@ -184,7 +184,7 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
                 </div>
               ))}
 
-              {/* Blocos de Aulas Renderizados */}
+              {/* Positioned event and reminder blocks */}
               <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
                 <div className="grid grid-cols-[52px_1fr] w-full h-full">
                   <div />
@@ -237,7 +237,7 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
           </div>
         </div>
 
-        {/* Sidebar: Agenda & Lembretes */}
+        {/* Sidebar: agenda & reminders */}
         <div className="xl:col-span-1 flex flex-col gap-6">
           <div className="bg-white border border-slate-200 rounded-none shadow-xl p-6 h-full flex flex-col">
             <h3 className="text-xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-4">
