@@ -26,6 +26,14 @@ interface WeeklyScheduleProps {
   activeCalendars: string[];
 }
 
+// Grid geometry. The hour-label gutter matches grid-cols-[52px_1fr]; when
+// events overlap, a day column splits into lanes and we widen the grid so no
+// lane falls below MIN_LANE_WIDTH (the grid scrolls horizontally instead of
+// squeezing events into an unreadable sliver).
+const HOUR_GUTTER = 52;
+const MIN_LANE_WIDTH = 68;
+const BASE_MIN_WIDTH = 760;
+
 export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps) {
   const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(new Date()));
   const [modalOpen, setModalOpen] = useState(false);
@@ -42,6 +50,13 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
       ]),
     [events, reminders, weekStart],
   );
+
+  // Widen the grid when a day needs multiple lanes, so overlapping events stay
+  // legible instead of shrinking. All events remain visible; it scrolls.
+  const gridMinWidth = useMemo(() => {
+    const maxLanes = blocks.reduce((m, b) => Math.max(m, b.lanes), 1);
+    return Math.max(BASE_MIN_WIDTH, HOUR_GUTTER + 7 * maxLanes * MIN_LANE_WIDTH);
+  }, [blocks]);
 
   // Sidebar agenda: important events (exams/deliveries) + personal reminders.
   const agenda = useMemo(() => {
@@ -136,7 +151,7 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
         
         {/* Main week grid */}
         <div className="xl:col-span-3 bg-white border border-slate-200 rounded-none shadow-xl overflow-x-auto relative z-0">
-          <div className="min-w-[760px] relative p-6">
+          <div className="relative p-6" style={{ minWidth: gridMinWidth }}>
             
             {/* Day headers */}
             <div className="grid grid-cols-[52px_1fr] border-b border-slate-200 pb-4 mb-2">
