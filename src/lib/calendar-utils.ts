@@ -1,7 +1,39 @@
 import type { CSSProperties } from "react";
 import { addDays, format, startOfMonth, startOfWeek } from "date-fns";
-import type { CalendarEvent, CalendarSourceStatus } from "@/types";
+import type {
+  CalendarEvent,
+  CalendarSourceStatus,
+  PersonalReminder,
+} from "@/types";
 import { wallClockDate } from "./datetime";
+
+/** Source key and color for personal reminders shown alongside events. */
+export const REMINDER_SOURCE = "personal";
+const REMINDER_COLOR = "#A855F7"; // purple, matches the weekly view
+
+function clock(decimalHour: number): string {
+  const hh = Math.floor(decimalHour);
+  const mm = Math.round((decimalHour - hh) * 60);
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+/**
+ * Present a personal reminder as a CalendarEvent so it renders through the same
+ * monthly pills and day modal as Google events. Stays local-only; never fetched.
+ */
+export function reminderToEvent(r: PersonalReminder): CalendarEvent {
+  return {
+    id: r.id,
+    title: r.title,
+    description: "",
+    start: `${r.date}T${clock(r.start)}:00`,
+    end: `${r.date}T${clock(r.end)}:00`,
+    allDay: false,
+    source: REMINDER_SOURCE,
+    colorHex: REMINDER_COLOR,
+    important: false,
+  };
+}
 
 /** Weekday labels (pt), Monday first. */
 export const WEEKDAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
@@ -37,14 +69,15 @@ export function eventTimeLabel(ev: CalendarEvent): string {
   return `${format(wallClockDate(ev.start), "HH:mm")} – ${format(wallClockDate(ev.end), "HH:mm")}`;
 }
 
-/** Inline pill style from the event's resolved color and importance. */
+/** Inline pill style from the event's resolved color and importance.
+ * Light theme, matching the weekly blocks: dark text on a faint color wash. */
 export function eventPillStyle(ev: CalendarEvent): CSSProperties {
   return {
-    color: "#e6edfb",
+    color: "#0f172a", // slate-900
     borderLeftColor: ev.colorHex,
-    backgroundColor: `${ev.colorHex}1f`, // ~12% alpha
+    backgroundColor: `${ev.colorHex}22`, // ~13% alpha, same as the weekly blocks
     ...(ev.important
-      ? { boxShadow: `0 0 10px ${ev.colorHex}80`, borderLeftWidth: 3 }
+      ? { boxShadow: `0 0 8px ${ev.colorHex}66`, borderLeftWidth: 3 }
       : null),
   };
 }

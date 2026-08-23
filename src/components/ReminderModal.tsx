@@ -1,120 +1,155 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import type { PersonalReminder } from "@/types";
-import { timeStrToDecimal } from "@/lib/schedule-utils";
+import { useState } from "react";
+import { parseISO, isValid } from "date-fns";
 
 interface ReminderModalProps {
-  onSave: (reminder: Omit<PersonalReminder, "id">) => void;
+  onSave: (reminder: {
+    title: string;
+    date: string;
+    start: number;
+    end: number;
+  }) => void;
   onClose: () => void;
 }
 
-const inputClass =
-  "w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-400 transition-colors";
-const labelClass =
-  "block text-xs font-bold text-cyan-400 mb-1 uppercase tracking-wider";
-
-/** Modal to add a private reminder, with inline validation (no blocking dialogs). */
 export default function ReminderModal({ onSave, onClose }: ReminderModalProps) {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("10:00");
   const [error, setError] = useState<string | null>(null);
 
-  function submit(e: FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title || !date || !start || !end) {
-      setError("Preenche todos os campos.");
+    setError(null);
+
+    if (!title.trim()) {
+      setError("Por favor, insere um título.");
       return;
     }
-    if (timeStrToDecimal(end) <= timeStrToDecimal(start)) {
-      setError("A hora de fim tem de ser depois do início.");
+    if (!date || !isValid(parseISO(date))) {
+      setError("Por favor, insere uma data válida (AAAA-MM-DD).");
       return;
     }
+
+    const [startH, startM] = startTime.split(":").map(Number);
+    const [endH, endM] = endTime.split(":").map(Number);
+    const startDecimal = startH + startM / 60;
+    const endDecimal = endH + endM / 60;
+
+    if (endDecimal <= startDecimal) {
+      setError("A hora de fim tem de ser posterior à hora de início.");
+      return;
+    }
+
     onSave({
-      title,
+      title: title.trim(),
       date,
-      start: timeStrToDecimal(start),
-      end: timeStrToDecimal(end),
+      start: startDecimal,
+      end: endDecimal,
     });
   }
 
   return (
-    <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-[#0B1120] border border-white/10 rounded-2xl p-8 w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.8)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-2xl font-bold text-white mb-2">Novo lembrete</h2>
-        <p className="text-sm text-slate-400 mb-6">
-          Guardado localmente e visível só no teu horário.
-        </p>
-
-        <form onSubmit={submit} className="flex flex-col gap-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
+      
+      <div className="bg-white border border-slate-200 shadow-2xl rounded-none w-full max-w-md p-8 relative">
+        
+        <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
           <div>
-            <label className={labelClass}>Título</label>
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight">Novo Lembrete</h3>
+            <p className="text-xs text-slate-500 mt-1">Guardado localmente e visível só no teu horário.</p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-700 font-bold text-lg p-1"
+          >
+            ✕
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-xs font-bold">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-widest text-[#63B3ED]">
+              Título
+            </label>
             <input
               type="text"
+              placeholder="Ex: Estudar Física Estatística"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ex: Estudar Álgebra"
-              className={inputClass}
+              className="px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-900 rounded-none text-sm focus:outline-none focus:border-[#63B3ED] transition-colors"
+              required
             />
           </div>
 
-          <div>
-            <label className={labelClass}>Data</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-widest text-[#63B3ED]">
+              Data
+            </label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className={`${inputClass} [color-scheme:dark]`}
+              className="px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-900 rounded-none text-sm focus:outline-none focus:border-[#63B3ED] transition-colors"
+              required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Início</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-widest text-[#63B3ED]">
+                Início
+              </label>
               <input
                 type="time"
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-                className={`${inputClass} [color-scheme:dark]`}
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-900 rounded-none text-sm focus:outline-none focus:border-[#63B3ED] transition-colors"
+                required
               />
             </div>
-            <div>
-              <label className={labelClass}>Fim</label>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-widest text-[#63B3ED]">
+                Fim
+              </label>
               <input
                 type="time"
-                value={end}
-                onChange={(e) => setEnd(e.target.value)}
-                className={`${inputClass} [color-scheme:dark]`}
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-900 rounded-none text-sm focus:outline-none focus:border-[#63B3ED] transition-colors"
+                required
               />
             </div>
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
-
-          <div className="flex gap-4 mt-2">
+          <div className="flex gap-3 mt-6">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 border border-slate-600 text-slate-300 rounded-xl font-bold hover:bg-white/5 transition-colors"
+              className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs uppercase font-bold tracking-widest rounded-none transition-colors"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold transition-colors shadow-[0_0_15px_rgba(8,145,178,0.5)]"
+              className="flex-1 py-3 bg-[#63B3ED] hover:bg-[#4A9EDB] text-white text-xs uppercase font-bold tracking-widest rounded-none transition-colors shadow-sm"
             >
               Guardar
             </button>
           </div>
+
         </form>
+
       </div>
     </div>
   );

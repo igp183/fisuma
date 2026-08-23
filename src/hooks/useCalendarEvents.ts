@@ -33,7 +33,7 @@ export function useCalendarEvents(
   const calParam = calendars?.join(",") ?? "";
 
   useEffect(() => {
-    // Explicitly-empty selection means "nothing to show" — skip the request.
+    // Explicitly-empty selection means "nothing to show", skip the request.
     if (scoped && calParam === "") {
       setEvents([]);
       setSources([]);

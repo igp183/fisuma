@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, parseISO } from "date-fns";
 import {
+  CARD_MAX_HEIGHT,
   HOURS,
+  HOUR_START,
   PX_PER_HOUR,
   WEEKDAYS_FULL,
   blockStyle,
@@ -15,7 +17,6 @@ import {
   remindersToBlocks,
   shortDate,
   toDecimalHour,
-  weekLabel,
 } from "@/lib/schedule-utils";
 import { useWeekEvents } from "@/hooks/useCalendarEvents";
 import { usePersonalReminders } from "@/hooks/usePersonalReminders";
@@ -23,31 +24,77 @@ import { wallClockDate } from "@/lib/datetime";
 import ReminderModal from "./ReminderModal";
 
 interface WeeklyScheduleProps {
+  weekStart: Date;
   activeCalendars: string[];
 }
 
-export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps) {
-  const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(new Date()));
-  const [modalOpen, setModalOpen] = useState(false);
+// Grid geometry. The hour-label gutter matches grid-cols-[52px_1fr]; when
+// events overlap, a day column splits into lanes and we widen the grid so no
+// lane falls below MIN_LANE_WIDTH (the grid scrolls horizontally instead of
+// squeezing events into an unreadable sliver).
+const HOUR_GUTTER = 52;
+const MIN_LANE_WIDTH = 68;
+const BASE_MIN_WIDTH = 760;
 
-  // Usamos o teu hook que vai buscar os eventos à rota /api/calendar
+export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklyScheduleProps) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Events for the visible week, from /api/calendar.
   const { events, loading, error } = useWeekEvents(weekStart, activeCalendars);
   const { reminders, add, remove } = usePersonalReminders();
+
+  // Events actually within the displayed Monday-Sunday window. The hook keeps
+  // the previous week's events visible while a new week loads (to avoid a
+  // flash-to-empty), so without this bound, a slow fetch briefly renders last
+  // week's classes under the new week's day columns. `weekdayIndex` only
+  // encodes day-of-week, not which week an event belongs to.
+  const weekEvents = useMemo(() => {
+    const monday = mondayOf(weekStart);
+    const sunday = addDays(monday, 7);
+    return events.filter((e) => {
+      const d = wallClockDate(e.start);
+      return d >= monday && d < sunday;
+    });
+  }, [events, weekStart]);
 
   const blocks = useMemo(
     () =>
       layoutWeek([
-        ...eventsToBlocks(events),
+        ...eventsToBlocks(weekEvents),
         ...remindersToBlocks(reminders, weekStart),
       ]),
-    [events, reminders, weekStart],
+    [weekEvents, reminders, weekStart],
   );
 
-  // Agenda lateral (exames/avaliações + lembretes pessoais)
+  // Widen the grid when a day needs multiple lanes, so overlapping events stay
+  // legible instead of shrinking. All events remain visible; it scrolls.
+  const gridMinWidth = useMemo(() => {
+    const maxLanes = blocks.reduce((m, b) => Math.max(m, b.lanes), 1);
+    return Math.max(BASE_MIN_WIDTH, HOUR_GUTTER + 7 * maxLanes * MIN_LANE_WIDTH);
+  }, [blocks]);
+
+  // On load or when the week changes, scroll to an hour before the day's
+  // first event (or before "now", if viewing the current week) instead of
+  // always starting at HOUR_START, so the relevant part of the day is
+  // visible without scrolling through empty morning hours first.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const isCurrentWeek = mondayOf(new Date()).getTime() === mondayOf(weekStart).getTime();
+    const candidates = blocks.map((b) => b.start);
+    if (isCurrentWeek) candidates.push(toDecimalHour(new Date()));
+    const target = candidates.length
+      ? Math.max(HOUR_START, Math.min(...candidates) - 1)
+      : HOUR_START;
+    el.scrollTop = (target - HOUR_START) * PX_PER_HOUR;
+  }, [blocks, weekStart]);
+
+  // Sidebar agenda: important events (exams/deliveries) + personal reminders.
   const agenda = useMemo(() => {
     const monday = mondayOf(weekStart);
     const sunday = addDays(monday, 7);
-    const exams = events
+    const exams = weekEvents
       .filter((e) => e.important && !e.allDay)
       .map((e) => {
         const d = wallClockDate(e.start);
@@ -78,7 +125,7 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
     return [...exams, ...rems].sort(
       (a, b) => a.date.getTime() - b.date.getTime() || a.start - b.start,
     );
-  }, [events, reminders, weekStart]);
+  }, [weekEvents, reminders, weekStart]);
 
   return (
     <div className="relative w-full">
@@ -92,53 +139,32 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
         />
       )}
 
-      {/* Controlos de Navegação da Semana */}
-      <div className="flex flex-wrap items-center gap-4 text-slate-600 mb-8">
-        <button
-          onClick={() => setWeekStart(mondayOf(new Date()))}
-          className="px-6 py-2 bg-white border border-slate-200 text-slate-700 shadow-sm rounded-none text-sm font-bold hover:bg-slate-50 transition-colors"
-        >
-          Hoje
-        </button>
-        
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setWeekStart((w) => addDays(w, -7))}
-            aria-label="Semana anterior"
-            className="w-10 h-10 flex items-center justify-center rounded-none bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
-          >
-            ←
-          </button>
-          <button
-            onClick={() => setWeekStart((w) => addDays(w, 7))}
-            aria-label="Semana seguinte"
-            className="w-10 h-10 flex items-center justify-center rounded-none bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
-          >
-            →
-          </button>
-        </div>
-        
-        <span className="text-lg font-bold text-slate-800 ml-2">{weekLabel(weekStart)}</span>
-        
-        {loading && (
-          <span className="text-[10px] font-mono uppercase tracking-widest text-[#0066CC] animate-pulse ml-4">
-            a sincronizar…
-          </span>
-        )}
-        {error && (
-          <span className="text-[10px] font-mono uppercase tracking-widest text-red-500 ml-4">
-            erro: {error}
-          </span>
-        )}
-      </div>
-
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        
-        {/* Grelha Principal Semanal */}
-        <div className="xl:col-span-3 bg-white border border-slate-200 rounded-none shadow-xl overflow-x-auto relative z-0">
-          <div className="min-w-[760px] relative p-6">
+
+        {/* Main week grid: height-capped, scrolls internally so the page
+            chrome above it never has to scroll out of view. */}
+        <div
+          className="xl:col-span-3 bg-white border border-slate-200 rounded-none shadow-xl relative z-0 flex flex-col"
+          style={{ maxHeight: CARD_MAX_HEIGHT }}
+        >
+          {(loading || error) && (
+            <div className="flex justify-end px-6 pt-3">
+              {loading && (
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[#0066CC] animate-pulse">
+                  a sincronizar…
+                </span>
+              )}
+              {error && (
+                <span className="text-[10px] font-mono uppercase tracking-widest text-red-500">
+                  erro: {error}
+                </span>
+              )}
+            </div>
+          )}
+          <div ref={scrollRef} className="overflow-auto flex-1">
+          <div className="relative p-6" style={{ minWidth: gridMinWidth }}>
             
-            {/* Cabeçalho dos Dias */}
+            {/* Day headers */}
             <div className="grid grid-cols-[52px_1fr] border-b border-slate-200 pb-4 mb-2">
               <div />
               <div className="grid grid-cols-7">
@@ -160,7 +186,7 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
             </div>
 
             <div className="relative">
-              {/* Linhas Horárias */}
+              {/* Hour rows */}
               {HOURS.map((hour) => (
                 <div
                   key={hour}
@@ -184,7 +210,7 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
                 </div>
               ))}
 
-              {/* Blocos de Aulas Renderizados */}
+              {/* Positioned event and reminder blocks */}
               <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
                 <div className="grid grid-cols-[52px_1fr] w-full h-full">
                   <div />
@@ -235,9 +261,10 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
               )}
             </div>
           </div>
+          </div>
         </div>
 
-        {/* Sidebar: Agenda & Lembretes */}
+        {/* Sidebar: agenda & reminders */}
         <div className="xl:col-span-1 flex flex-col gap-6">
           <div className="bg-white border border-slate-200 rounded-none shadow-xl p-6 h-full flex flex-col">
             <h3 className="text-xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-4">
@@ -294,7 +321,7 @@ export default function WeeklySchedule({ activeCalendars }: WeeklyScheduleProps)
 
             <button
               onClick={() => setModalOpen(true)}
-              className="w-full mt-6 py-3 border-2 border-dashed border-[#63B3ED] bg-blue-50/50 hover:bg-blue-50 text-[#0066CC] rounded-none text-sm font-bold transition-colors shadow-sm"
+              className="w-full mt-6 py-3 border-2 border-dashed border-[#63B3ED] bg-blue-50/50 hover:bg-blue-50 text-[#63B3ED] rounded-none text-sm font-bold transition-colors shadow-sm"
             >
               + Anotar lembrete
             </button>
