@@ -6,7 +6,7 @@ import { pt } from "date-fns/locale";
 import { CALENDARS } from "@/lib/calendars";
 import { mondayOf, weekLabel } from "@/lib/schedule-utils";
 import WeeklySchedule from "@/components/WeeklySchedule";
-import EventsCalendar from "@/components/EventsCalendar";
+import EventsCalendar from "@/components/MensalCalendar";
 import CalendarFilter from "@/components/CalendarFilter";
 
 type Tab = "semanal" | "mensal";
