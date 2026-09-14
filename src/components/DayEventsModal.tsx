@@ -7,6 +7,8 @@ import {
   REMINDER_SOURCE,
   eventPillStyle,
   eventTimeLabel,
+  roomLabel,
+  tipoLabel,
 } from "@/lib/calendar-utils";
 
 interface DayEventsModalProps {
@@ -69,6 +71,12 @@ export default function DayEventsModal({
                     <p className="text-sm font-semibold text-slate-900">
                       {ev.important && <span aria-hidden="true">🔴 </span>}
                       {ev.title}
+                      {ev.tipo && (
+                        <span className="font-normal text-slate-500">
+                          {" "}
+                          · {tipoLabel(ev.tipo)}
+                        </span>
+                      )}
                     </p>
                     {personal && (
                       <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-purple-600">
@@ -78,8 +86,13 @@ export default function DayEventsModal({
                   </div>
                   <p className="text-[11px] font-mono text-slate-500 mt-1">
                     {eventTimeLabel(ev)}
-                    {ev.location ? ` · ${ev.location}` : ""}
+                    {roomLabel(ev) ? ` · ${roomLabel(ev)}` : ""}
                   </p>
+                  {ev.docentes && ev.docentes.length > 0 && (
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {ev.docentes.join(", ")}
+                    </p>
+                  )}
                   {ev.description && (
                     <p className="text-xs text-slate-600 mt-2 whitespace-pre-wrap leading-relaxed">
                       {ev.description}

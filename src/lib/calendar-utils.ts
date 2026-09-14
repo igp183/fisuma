@@ -69,6 +69,47 @@ export function eventTimeLabel(ev: CalendarEvent): string {
   return `${format(wallClockDate(ev.start), "HH:mm")} – ${format(wallClockDate(ev.end), "HH:mm")}`;
 }
 
+// UMA class-type codes spelled out (codes may carry a group suffix, e.g. "TP5").
+const TIPO_LABELS: Record<string, string> = {
+  T: "Teórica",
+  TP: "Teórico-Prática",
+  P: "Prática",
+  PL: "Prática Laboratorial",
+  OT: "Orientação Tutorial",
+  S: "Seminário",
+};
+
+/** Long-form label for a class-type code: "TP5" → "Teórico-Prática · turno 5". */
+export function tipoLabel(tipo: string): string {
+  const m = tipo.match(/^([A-Za-z]+)(\d+)?$/);
+  const base = m ? TIPO_LABELS[m[1].toUpperCase()] : undefined;
+  if (!base) return tipo;
+  return m?.[2] ? `${base} · turno ${m[2]}` : base;
+}
+
+/**
+ * Full room label: short code, full name and floor when available
+ * ("02.9 · CITMA - 02 Sala 9 · piso -2"), else whatever location exists.
+ */
+export function roomLabel(ev: CalendarEvent): string | undefined {
+  if (!ev.sala && !ev.salaDesc) return ev.location || undefined;
+  const parts = [ev.sala, ev.salaDesc].filter(Boolean) as string[];
+  if (ev.piso !== undefined) parts.push(`piso ${ev.piso}`);
+  return parts.join(" · ");
+}
+
+/** Compact monthly-pill text: "09:00 Cálculo III · 1.19". */
+export function eventPillLabel(ev: CalendarEvent): string {
+  const time = ev.allDay ? "" : `${format(wallClockDate(ev.start), "HH:mm")} `;
+  const room = ev.sala ? ` · ${ev.sala}` : "";
+  return `${time}${ev.title}${room}`;
+}
+
+/** A recurring UMA class (as opposed to an exam, one-off event or reminder). */
+export function isRecurringClass(ev: CalendarEvent): boolean {
+  return ev.ano != null && !ev.important;
+}
+
 /** Inline pill style from the event's resolved color and importance.
  * Light theme, matching the weekly blocks: dark text on a faint color wash. */
 export function eventPillStyle(ev: CalendarEvent): CSSProperties {
