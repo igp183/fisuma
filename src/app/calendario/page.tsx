@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { addDays, addMonths, format, startOfMonth, subMonths } from "date-fns";
 import { pt } from "date-fns/locale";
 import { CALENDARS } from "@/lib/calendars";
@@ -16,18 +16,35 @@ const TABS: { value: Tab; label: string }[] = [
   { value: "mensal", label: "Mensal" },
 ];
 
+// localStorage key for the persisted calendar selection.
+const ACTIVE_KEY = "fisuma.calendario.ativos";
+// A student follows one year, so default to the first year + FISUMa rather than
+// every calendar (which crushes the weekly grid into unreadable lanes).
+const DEFAULT_ACTIVE = ["ano1", "fisuma"];
+
 export default function CalendarioPage() {
   const [tab, setTab] = useState<Tab>("semanal");
   const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(new Date()));
   const [monthView, setMonthView] = useState<Date>(() => startOfMonth(new Date()));
-  const [active, setActive] = useState<string[]>(() =>
-    CALENDARS.map((c) => c.key),
-  );
+  const [active, setActive] = useState<string[]>(DEFAULT_ACTIVE);
+
+  // Restore the last selection (client-only, so SSR renders the default).
+  useEffect(() => {
+    const saved = localStorage.getItem(ACTIVE_KEY);
+    if (saved === null) return;
+    const keys = saved.split(",").filter(Boolean);
+    const valid = keys.filter((k) => CALENDARS.some((c) => c.key === k));
+    setActive(valid);
+  }, []);
 
   const toggle = (key: string) =>
-    setActive((cur) =>
-      cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
-    );
+    setActive((cur) => {
+      const next = cur.includes(key)
+        ? cur.filter((k) => k !== key)
+        : [...cur, key];
+      localStorage.setItem(ACTIVE_KEY, next.join(","));
+      return next;
+    });
 
   const goToday = () =>
     tab === "semanal"

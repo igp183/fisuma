@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { addDays, parseISO } from "date-fns";
 import type { CalendarEvent, PersonalReminder } from "@/types";
+import { reminderToEvent } from "./calendar-utils";
 import { wallClockDate } from "./datetime";
 
 // Weekly grid geometry.
@@ -16,6 +17,19 @@ export const WEEKDAYS_FULL = [
 export const HOUR_START = 8;
 export const HOUR_END = 21;
 export const PX_PER_HOUR = 80;
+
+/** Weekday columns always shown in the weekly view (Mon–Fri). */
+export const MIN_WEEK_DAYS = 5;
+
+/**
+ * How many day columns the weekly grid should render: Mon–Fri by default,
+ * extended to include a Saturday/Sunday only when an event actually lands
+ * there. Keeps empty weekends from wasting ~2/7 of the width while never
+ * hiding a real class or exam.
+ */
+export function visibleDayCount(blocks: { dayIndex: number }[]): number {
+  return blocks.reduce((max, b) => Math.max(max, b.dayIndex + 1), MIN_WEEK_DAYS);
+}
 
 /**
  * Max height for the Semanal/Mensal grid card. Bounds the card to the
@@ -80,20 +94,12 @@ export function timeStrToDecimal(t: string): number {
   return h + (m || 0) / 60;
 }
 
-const TYPE_RE = /\(([^)]+)\)\s*$/;
-/** Split "Cálculo III (T)" into { name: "Cálculo III", tipo: "T" }. */
-export function parseClassTitle(title: string): { name: string; tipo?: string } {
-  const m = title.match(TYPE_RE);
-  if (m && m.index !== undefined) {
-    return { name: title.slice(0, m.index).trim(), tipo: m[1].trim() };
-  }
-  return { name: title.trim() };
-}
-
 /**
  * Absolute position/size for a block in the week grid.
- * A day column (100/7 %) is split into `lanes` sub-columns so overlapping
- * events sit side-by-side; `lane` is this block's sub-column (0-based).
+ * A day column (100/`numDays` %) is split into `lanes` sub-columns so
+ * overlapping events sit side-by-side; `lane` is this block's sub-column
+ * (0-based). `numDays` is how many day columns the grid currently shows
+ * (5 for a weekday-only week, up to 7 when weekend events are present).
  * Start/end are clamped to the visible [HOUR_START, HOUR_END] range.
  */
 export function blockStyle(
@@ -102,8 +108,9 @@ export function blockStyle(
   end: number,
   lane = 0,
   lanes = 1,
+  numDays = 7,
 ): CSSProperties {
-  const dayWidth = 100 / 7;
+  const dayWidth = 100 / numDays;
   const laneWidth = dayWidth / lanes;
   const gap = lanes > 1 ? 2 : 4;
   const top = Math.max(start, HOUR_START);
@@ -129,27 +136,30 @@ export interface WeekBlock {
   ano?: number;
   important: boolean;
   personal: boolean;
+  /** The underlying event, for the details modal. */
+  event: CalendarEvent;
 }
 
-/** Google class/event instances (timed only) as positioned blocks. */
+/** Class/event instances (timed only) as positioned blocks. */
 export function eventsToBlocks(events: CalendarEvent[]): WeekBlock[] {
   return events
     .filter((e) => !e.allDay)
     .map((e) => {
       const start = wallClockDate(e.start);
-      const { name, tipo } = parseClassTitle(e.title);
       return {
         id: e.id,
         dayIndex: weekdayIndex(start),
         start: toDecimalHour(start),
         end: toDecimalHour(wallClockDate(e.end)),
-        title: name,
-        tipo,
-        sala: e.location,
+        title: e.title,
+        tipo: e.tipo,
+        // Short room code on the block; the full name lives in the modal.
+        sala: e.sala ?? e.location,
         colorHex: e.colorHex,
         ano: e.ano,
         important: e.important,
         personal: false,
+        event: e,
       };
     });
 }
@@ -176,6 +186,7 @@ export function remindersToBlocks(
       colorHex: "#A855F7", // purple
       important: false,
       personal: true,
+      event: reminderToEvent(r),
     }));
 }
 

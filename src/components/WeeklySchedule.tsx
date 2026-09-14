@@ -13,14 +13,17 @@ import {
   formatHour,
   layoutWeek,
   mondayOf,
-  parseClassTitle,
   remindersToBlocks,
   shortDate,
   toDecimalHour,
+  visibleDayCount,
 } from "@/lib/schedule-utils";
+import { reminderToEvent } from "@/lib/calendar-utils";
 import { useWeekEvents } from "@/hooks/useCalendarEvents";
 import { usePersonalReminders } from "@/hooks/usePersonalReminders";
 import { wallClockDate } from "@/lib/datetime";
+import type { CalendarEvent } from "@/types";
+import EventDetailsModal from "./EventDetailsModal";
 import ReminderModal from "./ReminderModal";
 
 interface WeeklyScheduleProps {
@@ -38,6 +41,7 @@ const BASE_MIN_WIDTH = 760;
 
 export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklyScheduleProps) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [detail, setDetail] = useState<CalendarEvent | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Events for the visible week, from /api/calendar.
@@ -67,12 +71,24 @@ export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklySch
     [weekEvents, reminders, weekStart],
   );
 
+  // Day columns to render: Mon–Fri, plus any weekend day that has an event.
+  // Empty weekends are dropped so weekday columns use the full width.
+  const numDays = useMemo(() => visibleDayCount(blocks), [blocks]);
+
+  // Whether more than one academic year is on screen. When years overlap, the
+  // per-block year tag disambiguates them; with a single year it's redundant
+  // (the color already says which), so we show the class type there instead.
+  const multiYear = useMemo(
+    () => new Set(blocks.map((b) => b.ano).filter((a) => a != null)).size > 1,
+    [blocks],
+  );
+
   // Widen the grid when a day needs multiple lanes, so overlapping events stay
   // legible instead of shrinking. All events remain visible; it scrolls.
   const gridMinWidth = useMemo(() => {
     const maxLanes = blocks.reduce((m, b) => Math.max(m, b.lanes), 1);
-    return Math.max(BASE_MIN_WIDTH, HOUR_GUTTER + 7 * maxLanes * MIN_LANE_WIDTH);
-  }, [blocks]);
+    return Math.max(BASE_MIN_WIDTH, HOUR_GUTTER + numDays * maxLanes * MIN_LANE_WIDTH);
+  }, [blocks, numDays]);
 
   // On load or when the week changes, scroll to an hour before the day's
   // first event (or before "now", if viewing the current week) instead of
@@ -103,9 +119,12 @@ export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklySch
           date: d,
           start: toDecimalHour(d),
           end: toDecimalHour(wallClockDate(e.end)),
-          title: parseClassTitle(e.title).name,
+          // The tag already says "Avaliação"; don't repeat it in the title.
+          title: e.title.replace(/^Avaliação:\s*/, ""),
           tipo: "Avaliação",
+          sala: e.sala ?? e.location,
           personal: false,
+          event: e,
         };
       });
     const rems = reminders
@@ -120,7 +139,9 @@ export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklySch
         end: r.end,
         title: r.title,
         tipo: "Pessoal",
+        sala: undefined as string | undefined,
         personal: true,
+        event: reminderToEvent(r),
       }));
     return [...exams, ...rems].sort(
       (a, b) => a.date.getTime() - b.date.getTime() || a.start - b.start,
@@ -136,6 +157,14 @@ export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklySch
             setModalOpen(false);
           }}
           onClose={() => setModalOpen(false)}
+        />
+      )}
+
+      {detail && (
+        <EventDetailsModal
+          event={detail}
+          onDeleteReminder={remove}
+          onClose={() => setDetail(null)}
         />
       )}
 
@@ -167,8 +196,11 @@ export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklySch
             {/* Day headers */}
             <div className="grid grid-cols-[52px_1fr] border-b border-slate-200 pb-4 mb-2">
               <div />
-              <div className="grid grid-cols-7">
-                {WEEKDAYS_FULL.map((day, index) => {
+              <div
+                className="grid"
+                style={{ gridTemplateColumns: `repeat(${numDays}, minmax(0, 1fr))` }}
+              >
+                {WEEKDAYS_FULL.slice(0, numDays).map((day, index) => {
                   const date = addDays(weekStart, index);
                   const weekend = index > 4;
                   return (
@@ -198,9 +230,12 @@ export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklySch
                       {hour}:00
                     </span>
                   </div>
-                  <div className="grid grid-cols-7 relative border-l border-slate-100">
+                  <div
+                    className="grid relative border-l border-slate-100"
+                    style={{ gridTemplateColumns: `repeat(${numDays}, minmax(0, 1fr))` }}
+                  >
                     <div className="absolute top-1/2 w-full border-t border-slate-100 border-dashed" />
-                    {WEEKDAYS_FULL.map((_, i) => (
+                    {WEEKDAYS_FULL.slice(0, numDays).map((_, i) => (
                       <div
                         key={i}
                         className={`border-r border-slate-100 ${i > 4 ? "bg-slate-50/50" : ""}`}
@@ -215,41 +250,67 @@ export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklySch
                 <div className="grid grid-cols-[52px_1fr] w-full h-full">
                   <div />
                   <div className="relative w-full h-full">
-                    {blocks.map((b) => (
-                      <div
-                        key={b.id}
-                        style={{
-                          ...blockStyle(b.dayIndex, b.start, b.end, b.lane, b.lanes),
-                          borderColor: b.colorHex,
-                          backgroundColor: `${b.colorHex}22`,
-                          borderStyle: b.personal ? "dashed" : "solid",
-                        }}
-                        className="absolute rounded-none border-2 p-2 flex flex-col overflow-hidden text-slate-900 pointer-events-auto z-10 transition-transform hover:z-50 hover:scale-[1.02] group shadow-sm"
-                      >
-                        <div className="flex justify-between items-start mb-1 gap-1">
-                          <span className="text-[9px] font-black uppercase tracking-wider bg-white/70 text-slate-800 px-1.5 py-0.5 rounded-none shadow-sm">
-                            {b.personal ? "Pessoal" : b.ano ? `${b.ano}º` : b.tipo ?? ""}
-                          </span>
-                          <span className="text-[10px] font-bold opacity-80">{formatHour(b.start)}</span>
-                        </div>
-                        <div className="font-bold text-xs leading-tight">{b.title}</div>
-                        {(b.sala || (b.tipo && !b.personal)) && (
-                          <div className="text-[10px] font-medium opacity-70 mt-auto truncate">
-                            {b.tipo && !b.personal ? `[${b.tipo}] ` : ""}
-                            {b.sala ?? ""}
+                    {blocks.map((b) => {
+                      // Badge: the class type, plus the year when several years
+                      // share the grid (color alone no longer disambiguates).
+                      const badge = b.personal
+                        ? "Pessoal"
+                        : [b.tipo, multiYear && b.ano ? `${b.ano}º` : null]
+                            .filter(Boolean)
+                            .join(" · ");
+                      return (
+                        <div
+                          key={b.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setDetail(b.event)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setDetail(b.event);
+                            }
+                          }}
+                          style={{
+                            ...blockStyle(b.dayIndex, b.start, b.end, b.lane, b.lanes, numDays),
+                            borderColor: b.colorHex,
+                            backgroundColor: `${b.colorHex}22`,
+                            borderStyle: b.personal ? "dashed" : "solid",
+                          }}
+                          className="absolute rounded-none border-2 p-2 flex flex-col overflow-hidden text-slate-900 pointer-events-auto z-10 transition-transform hover:z-50 hover:scale-[1.02] group shadow-sm cursor-pointer"
+                        >
+                          <div className="flex justify-between items-start mb-1 gap-1">
+                            {badge && (
+                              <span className="shrink-0 text-[9px] font-black uppercase tracking-wider bg-white/70 text-slate-800 px-1.5 py-0.5 rounded-none shadow-sm">
+                                {badge}
+                              </span>
+                            )}
+                            <span className="shrink-0 ml-auto text-[10px] font-bold tabular-nums opacity-80">
+                              {b.lanes === 1
+                                ? `${formatHour(b.start)}–${formatHour(b.end)}`
+                                : formatHour(b.start)}
+                            </span>
                           </div>
-                        )}
-                        {b.personal && (
-                          <button
-                            onClick={() => remove(b.id)}
-                            aria-label="Apagar lembrete"
-                            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-500/90 hover:bg-red-600 text-white text-[10px] w-5 h-5 rounded-none flex items-center justify-center transition-opacity"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                          <div className="font-bold text-xs leading-tight">{b.title}</div>
+                          {b.sala && (
+                            <div className="text-[10px] font-medium opacity-70 mt-auto truncate">
+                              {b.sala}
+                            </div>
+                          )}
+                          {b.personal && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                remove(b.id);
+                              }}
+                              aria-label="Apagar lembrete"
+                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-500/90 hover:bg-red-600 text-white text-[10px] w-5 h-5 rounded-none flex items-center justify-center transition-opacity"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -282,7 +343,16 @@ export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklySch
                 agenda.map((item) => (
                   <div
                     key={item.id}
-                    className="group relative flex flex-col p-4 rounded-none bg-slate-50 border border-slate-100 hover:border-slate-300 transition-colors shadow-sm"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setDetail(item.event)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setDetail(item.event);
+                      }
+                    }}
+                    className="group relative flex flex-col p-4 rounded-none bg-slate-50 border border-slate-100 hover:border-slate-300 transition-colors shadow-sm cursor-pointer"
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-2">
@@ -306,9 +376,17 @@ export default function WeeklySchedule({ weekStart, activeCalendars }: WeeklySch
                     <h4 className="text-sm font-bold text-slate-900 leading-snug pr-4">
                       {item.title}
                     </h4>
+                    {item.sala && (
+                      <p className="text-[11px] font-medium text-slate-500 mt-1">
+                        📍 {item.sala}
+                      </p>
+                    )}
                     {item.personal && (
                       <button
-                        onClick={() => remove(item.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          remove(item.id);
+                        }}
                         className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all text-xs font-bold"
                       >
                         Apagar
