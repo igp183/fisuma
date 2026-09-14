@@ -1,8 +1,12 @@
-// Public Google Calendars the site reads from. IDs come from env vars (see
-// .env.example) so they're configurable without code changes; metadata lives
-// here. An empty env var means the calendar is skipped.
+// Calendars the site reads from. Class timetables (1º/2º/3º ano) come live from
+// the Universidade da Madeira public schedule API, keyed by course + year. The
+// FISUMa calendar stays a public Google Calendar the association edits by hand.
+// Config comes from env vars (see .env.example) so it's changeable without code.
 
 export type CalendarColorKey = "amber" | "cyan" | "violet" | "blue";
+
+/** Where a calendar's events come from. */
+export type CalendarSourceType = "uma" | "google";
 
 export interface CalendarMeta {
   /** Stable key used in query params and UI toggles. */
@@ -11,28 +15,42 @@ export interface CalendarMeta {
   /** Academic year (1-3) for class calendars; undefined for FISUMa events. */
   ano?: number;
   color: CalendarColorKey;
-  /** Env var holding this calendar's public ID. */
-  envVar: string;
+  /** Backing data source. */
+  sourceType: CalendarSourceType;
+  /** Google source only: env var holding the public calendar ID. */
+  envVar?: string;
 }
 
-/** A calendar's metadata plus the ID resolved from the environment. */
+/** A calendar's metadata plus the values resolved from the environment. */
 export interface CalendarSource extends CalendarMeta {
-  id: string;
+  /** Google source: resolved public calendar ID (empty ⇒ skipped). */
+  id?: string;
+  /** UMA source: resolved course id from UMA_CURSO_ID. */
+  cursoid?: number;
 }
+
+/** UMA course id for the Physics degree (Licenciatura em Física). */
+const DEFAULT_UMA_CURSO_ID = 23360;
 
 export const CALENDARS: CalendarMeta[] = [
-  { key: "ano1", label: "1º Ano", ano: 1, color: "amber", envVar: "GOOGLE_CALENDAR_ID_ANO1" },
-  { key: "ano2", label: "2º Ano", ano: 2, color: "cyan", envVar: "GOOGLE_CALENDAR_ID_ANO2" },
-  { key: "ano3", label: "3º Ano", ano: 3, color: "violet", envVar: "GOOGLE_CALENDAR_ID_ANO3" },
-  { key: "fisuma", label: "FISUMa", color: "blue", envVar: "GOOGLE_CALENDAR_ID_FISUMA" },
+  { key: "ano1", label: "1º Ano", ano: 1, color: "amber", sourceType: "uma" },
+  { key: "ano2", label: "2º Ano", ano: 2, color: "cyan", sourceType: "uma" },
+  { key: "ano3", label: "3º Ano", ano: 3, color: "violet", sourceType: "uma" },
+  { key: "fisuma", label: "FISUMa", color: "blue", sourceType: "google", envVar: "GOOGLE_CALENDAR_ID_FISUMA" },
 ];
 
-/** Calendars whose ID is set in the environment. Server-side only. */
+/**
+ * Resolve each calendar against the environment. Server-side only.
+ * UMA calendars (class timetables) are always kept — 3º ano is included even if
+ * upstream returns no classes yet. Google calendars are skipped when their ID
+ * env var is empty.
+ */
 export function configuredCalendars(): CalendarSource[] {
-  return CALENDARS.map((c) => ({
-    ...c,
-    id: (process.env[c.envVar] ?? "").trim(),
-  })).filter((c) => c.id !== "");
+  const cursoid = Number(process.env.UMA_CURSO_ID) || DEFAULT_UMA_CURSO_ID;
+  return CALENDARS.map((c): CalendarSource => {
+    if (c.sourceType === "uma") return { ...c, cursoid };
+    return { ...c, id: (process.env[c.envVar ?? ""] ?? "").trim() };
+  }).filter((c) => c.sourceType === "uma" || c.id !== "");
 }
 
 // Tailwind class fragments per calendar color, used for the legend dots.
@@ -47,6 +65,10 @@ export const CALENDAR_COLORS: Record<CalendarColorKey, { dot: string }> = {
 /** Tailwind class for a calendar's legend dot. */
 export const colorDotClass = (color: string): string =>
   (CALENDAR_COLORS[color as CalendarColorKey] ?? CALENDAR_COLORS.blue).dot;
+
+/** Color for exams/assessments pulled from UMA — matches the red "important"
+ * language used for Google's Tomato exams, so both read the same on the grid. */
+export const EXAM_COLOR_HEX = "#D50000";
 
 // Fallback hex per calendar color (used when an event has no explicit color).
 export const CALENDAR_COLOR_HEX: Record<CalendarColorKey, string> = {
