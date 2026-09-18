@@ -40,9 +40,9 @@ export default function EventsCalendar({ view, activeCalendars }: EventsCalendar
   const [selected, setSelected] = useState<Date | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [detail, setDetail] = useState<CalendarEvent | null>(null);
-  // Recurring classes flood the month (they repeat every week); default to
-  // events-only and let the user opt back in. The weekly view owns the timetable.
-  const [showClasses, setShowClasses] = useState(false);
+  
+  // Alterado para 'true' para as aulas aparecerem logo por defeito no calendário mensal!
+  const [showClasses, setShowClasses] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const todayRef = useRef<HTMLButtonElement>(null);
 
@@ -50,7 +50,12 @@ export default function EventsCalendar({ view, activeCalendars }: EventsCalendar
   const { reminders, add, remove } = usePersonalReminders();
 
   useEffect(() => {
-    setShowClasses(localStorage.getItem(SHOW_CLASSES_KEY) === "1");
+    const stored = localStorage.getItem(SHOW_CLASSES_KEY);
+    // Se o utilizador já tiver clicado no botão antes, usamos a preferência dele.
+    // Caso contrário, assume 'true' e mostra tudo.
+    if (stored !== null) {
+      setShowClasses(stored === "1");
+    }
   }, []);
 
   const toggleClasses = () =>
